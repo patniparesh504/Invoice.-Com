@@ -1,0 +1,393 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>Fast Invoice — Simple Generator</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root{
+      --accent:#0b74de;
+      --muted:#666;
+      --bg:#f6f8fb;
+      --card:#fff;
+      font-family: "Inter", system-ui, Arial, sans-serif;
+    }
+    *{box-sizing:border-box}
+    body{margin:0;background:var(--bg);color:#111;padding:20px}
+    .wrap{max-width:1100px;margin:0 auto;display:grid;grid-template-columns:1fr 1fr;gap:20px}
+    .panel{background:var(--card);padding:18px;border-radius:12px;box-shadow:0 6px 18px rgba(15,20,30,0.06)}
+    h2{margin:0 0 12px 0;font-size:18px}
+    label{display:block;font-size:13px;color:var(--muted);margin-top:8px}
+    input[type="text"], input[type="date"], input[type="number"], textarea, select{
+      width:100%;padding:8px;border-radius:6px;border:1px solid #e6e9ef;margin-top:6px;font-size:14px
+    }
+    .flex{display:flex;gap:10px}
+    .items{margin-top:12px}
+    table{width:100%;border-collapse:collapse;margin-top:8px}
+    th, td{padding:8px;text-align:left;border-bottom:1px solid #f0f2f6;font-size:14px}
+    .right{text-align:right}
+    button{background:var(--accent);color:#fff;padding:10px 12px;border:0;border-radius:8px;cursor:pointer}
+    .muted{color:var(--muted);font-size:13px}
+    .logo-preview{height:60px;object-fit:contain}
+    /* invoice preview */
+    .invoice{padding:18px;border-radius:8px;background:#fff;border:1px solid #eef2f7}
+    .inv-head{display:flex;justify-content:space-between;align-items:center}
+    .inv-head h3{margin:0}
+    .inv-lines{margin-top:12px}
+    .small{font-size:13px;color:var(--muted)}
+    .controls{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+    .danger{background:#e74c3c}
+    @media(max-width:900px){.wrap{grid-template-columns:1fr;}}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <!-- Left: form -->
+    <div class="panel">
+      <h2>Invoice Data</h2>
+      <label>Company name</label>
+      <input id="companyName" type="text" value="Your Company Name">
+      <label>Company address</label>
+      <textarea id="companyAddress" rows="2">Address line 1, City, State, Pincode</textarea>
+
+      <div style="display:flex;gap:10px;align-items:center;margin-top:8px">
+        <div style="flex:1">
+          <label>Bill To (Customer)</label>
+          <input id="billTo" type="text" value="Customer Name - City">
+        </div>
+        <div style="width:120px">
+          <label>Invoice #</label>
+          <input id="invoiceNo" type="text" value="INV-001">
+        </div>
+      </div>
+
+      <div class="flex" style="margin-top:8px">
+        <div style="flex:1">
+          <label>Invoice Date</label>
+          <input id="invoiceDate" type="date">
+        </div>
+        <div style="flex:1">
+          <label>Due Date</label>
+          <input id="dueDate" type="date">
+        </div>
+      </div>
+
+      <label style="margin-top:12px">Logo (PNG/JPG)</label>
+      <input id="logoInput" type="file" accept="image/*">
+      <img id="logoPreview" class="logo-preview" alt="" style="display:none;margin-top:8px"/>
+
+      <div class="items">
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <label style="font-weight:600">Line items</label>
+          <button id="addItemBtn" style="background:#2ecc71">+ Add item</button>
+        </div>
+        <table id="itemsTable">
+          <thead><tr><th>Item</th><th>Qty</th><th>Rate</th><th class="right">Amount</th><th></th></tr></thead>
+          <tbody></tbody>
+        </table>
+        <div style="display:flex;justify-content:flex-end;margin-top:8px">
+          <div style="width:250px">
+            <div style="display:flex;justify-content:space-between"><div class="small">Subtotal</div><div id="subtotal" class="small">₹0</div></div>
+            <div style="display:flex;justify-content:space-between;margin-top:6px"><div class="small">Discount</div><div><input id="discount" type="number" value="0" min="0" style="width:100px"></div></div>
+            <div style="display:flex;justify-content:space-between;margin-top:8px;font-weight:700"><div>Total</div><div id="total">₹0</div></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="controls">
+        <button id="downloadPdf">Download PDF</button>
+        <button id="exportJson" style="background:#6c5ce7">Export JSON</button>
+        <label style="display:inline-block;background:#f1f3f6;padding:8px;border-radius:8px;cursor:pointer;color:#333">
+          Import JSON <input id="importJson" type="file" accept="application/json" style="display:none">
+        </label>
+        <button id="resetBtn" class="danger">Reset</button>
+      </div>
+
+      <p class="muted" style="margin-top:12px">Tip: Push this single file to GitHub and enable GitHub Pages (branch: main, folder: /) to host it free.</p>
+    </div>
+
+    <!-- Right: preview -->
+    <div class="panel">
+      <h2>Preview</h2>
+      <div id="invoicePreview" class="invoice">
+        <div class="inv-head">
+          <div>
+            <h3 id="p-company">Your Company Name</h3>
+            <div id="p-address" class="small">Address line 1, City, State, Pincode</div>
+          </div>
+          <div style="text-align:right">
+            <img id="p-logo" src="" alt="" class="logo-preview" style="display:none">
+            <div style="margin-top:8px">
+              <div><strong>Invoice</strong></div>
+              <div class="small"># <span id="p-invoiceno">INV-001</span></div>
+              <div class="small">Date: <span id="p-date"></span></div>
+              <div class="small">Due: <span id="p-duedate"></span></div>
+            </div>
+          </div>
+        </div>
+
+        <div style="margin-top:12px">
+          <div class="small">Bill To</div>
+          <div id="p-billto" style="font-weight:600">Customer Name - City</div>
+        </div>
+
+        <div class="inv-lines">
+          <table id="p-table">
+            <thead><tr><th>Item</th><th>Qty</th><th>Rate</th><th class="right">Amount</th></tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+
+        <div style="display:flex;justify-content:flex-end;margin-top:12px">
+          <div style="width:260px">
+            <div style="display:flex;justify-content:space-between"><div class="small">Subtotal</div><div id="p-sub">₹0</div></div>
+            <div style="display:flex;justify-content:space-between;margin-top:6px"><div class="small">Discount</div><div id="p-disc">₹0</div></div>
+            <div style="display:flex;justify-content:space-between;margin-top:8px;font-weight:700"><div>Total</div><div id="p-total">₹0</div></div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+  </div>
+
+  <!-- html2pdf CDN -->
+  <script src="https://unpkg.com/html2pdf.js@0.9.3/dist/html2pdf.bundle.min.js"></script>
+  <script>
+    // helpers
+    const q = sel => document.querySelector(sel);
+    const qAll = sel => document.querySelectorAll(sel);
+
+    // initial DOM refs
+    const companyName = q('#companyName');
+    const companyAddress = q('#companyAddress');
+    const billTo = q('#billTo');
+    const invoiceNo = q('#invoiceNo');
+    const invoiceDate = q('#invoiceDate');
+    const dueDate = q('#dueDate');
+    const logoInput = q('#logoInput');
+    const logoPreview = q('#logoPreview');
+
+    const itemsTableBody = q('#itemsTable tbody');
+    const p_company = q('#p-company');
+    const p_address = q('#p-address');
+    const p_billto = q('#p-billto');
+    const p_invoiceno = q('#p-invoiceno');
+    const p_date = q('#p-date');
+    const p_duedate = q('#p-duedate');
+    const p_table_body = q('#p-table tbody');
+    const p_sub = q('#p-sub');
+    const p_disc = q('#p-disc');
+    const p_total = q('#p-total');
+    const subtotalDisplay = q('#subtotal');
+    const totalDisplay = q('#total');
+    const discountInput = q('#discount');
+
+    // set today's date default
+    const today = new Date().toISOString().slice(0,10);
+    invoiceDate.value = today;
+
+    // state: items array
+    let items = [];
+
+    function renderItems(){
+      // form table
+      itemsTableBody.innerHTML = '';
+      items.forEach((it, idx) => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td><input data-idx="${idx}" class="itm-name" type="text" value="${escapeHtml(it.name)}" style="width:100%"></td>
+          <td><input data-idx="${idx}" class="itm-qty" type="number" min="0" value="${it.qty}" style="width:80px"></td>
+          <td><input data-idx="${idx}" class="itm-rate" type="number" min="0" value="${it.rate}" style="width:100px"></td>
+          <td class="right">₹${formatNumber(it.qty * it.rate)}</td>
+          <td style="width:36px"><button data-idx="${idx}" class="del">✕</button></td>
+        `;
+        itemsTableBody.appendChild(tr);
+      });
+
+      // preview table
+      p_table_body.innerHTML = '';
+      items.forEach(it=>{
+        const tr = document.createElement('tr');
+        tr.innerHTML = `<td>${escapeHtml(it.name)}</td><td>${it.qty}</td><td>₹${formatNumber(it.rate)}</td><td class="right">₹${formatNumber(it.qty * it.rate)}</td>`;
+        p_table_body.appendChild(tr);
+      });
+
+      attachItemEvents();
+      recalc();
+    }
+
+    function attachItemEvents(){
+      qAll('.del').forEach(btn=>{
+        btn.onclick = e => {
+          const idx = Number(e.target.dataset.idx);
+          items.splice(idx,1);
+          renderItems();
+        };
+      });
+      qAll('.itm-name').forEach(inp=>{
+        inp.oninput = e => {
+          const idx = Number(e.target.dataset.idx);
+          items[idx].name = e.target.value;
+          renderItems(); // re-render to update preview also
+        };
+      });
+      qAll('.itm-qty').forEach(inp=>{
+        inp.oninput = e => {
+          const idx = Number(e.target.dataset.idx);
+          items[idx].qty = Number(e.target.value) || 0;
+          renderItems();
+        };
+      });
+      qAll('.itm-rate').forEach(inp=>{
+        inp.oninput = e => {
+          const idx = Number(e.target.dataset.idx);
+          items[idx].rate = Number(e.target.value) || 0;
+          renderItems();
+        };
+      });
+    }
+
+    function recalc(){
+      const subtotal = items.reduce((s,it)=>s + (it.qty * it.rate), 0);
+      const discount = Number(discountInput.value) || 0;
+      const total = Math.max(0, subtotal - discount);
+      subtotalDisplay.textContent = `₹${formatNumber(subtotal)}`;
+      totalDisplay.textContent = `₹${formatNumber(total)}`;
+      p_sub.textContent = `₹${formatNumber(subtotal)}`;
+      p_disc.textContent = `₹${formatNumber(discount)}`;
+      p_total.textContent = `₹${formatNumber(total)}`;
+    }
+
+    // utility
+    function formatNumber(n){
+      return n.toLocaleString('en-IN', {maximumFractionDigits:2});
+    }
+    function escapeHtml(s){ return (s+'').replace(/[&<>"']/g, c=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c])); }
+
+    // add default item
+    function addItem(name='',qty=1,rate=0){
+      items.push({name, qty:Number(qty)||0, rate:Number(rate)||0});
+      renderItems();
+    }
+
+    // initial sample
+    addItem('Sample item',1,699);
+
+    // wire up add item button
+    q('#addItemBtn').onclick = () => addItem('New item',1,0);
+
+    // update preview text fields live
+    [companyName, companyAddress, billTo, invoiceNo, invoiceDate, dueDate].forEach(el=>{
+      el.oninput = updatePreview;
+      el.onchange = updatePreview;
+    });
+    discountInput.oninput = recalc;
+
+    function updatePreview(){
+      p_company.textContent = companyName.value || 'Your Company Name';
+      p_address.textContent = companyAddress.value || '';
+      p_billto.textContent = billTo.value || '';
+      p_invoiceno.textContent = invoiceNo.value || '';
+      p_date.textContent = invoiceDate.value || '';
+      p_duedate.textContent = dueDate.value || '';
+    }
+    updatePreview();
+
+    // logo upload
+    logoInput.onchange = e => {
+      const f = e.target.files[0];
+      if(!f) return;
+      const reader = new FileReader();
+      reader.onload = ev => {
+        logoPreview.src = ev.target.result;
+        logoPreview.style.display = 'block';
+        const pLogo = q('#p-logo');
+        pLogo.src = ev.target.result;
+        pLogo.style.display = 'block';
+      };
+      reader.readAsDataURL(f);
+    };
+
+    // download pdf
+    q('#downloadPdf').onclick = () => {
+      // ensure preview updated
+      updatePreview();
+      recalc();
+      const element = q('#invoicePreview');
+      const opt = {
+        margin:       0.2,
+        filename:     (invoiceNo.value || 'invoice') + '.pdf',
+        image:        { type: 'jpeg', quality: 0.98 },
+        html2canvas:  { scale: 2, useCORS: true },
+        jsPDF:        { unit: 'in', format: 'a4', orientation: 'portrait' }
+      };
+      html2pdf().set(opt).from(element).save();
+    };
+
+    // export JSON
+    q('#exportJson').onclick = () => {
+      const payload = {
+        companyName: companyName.value, companyAddress: companyAddress.value,
+        billTo: billTo.value, invoiceNo: invoiceNo.value,
+        invoiceDate: invoiceDate.value, dueDate: dueDate.value,
+        items, discount: Number(discountInput.value)||0,
+        logo: logoPreview.src || null
+      };
+      const blob = new Blob([JSON.stringify(payload, null, 2)], {type:'application/json'});
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url; a.download = (invoiceNo.value || 'invoice') + '.json';
+      document.body.appendChild(a); a.click(); a.remove();
+      URL.revokeObjectURL(url);
+    };
+
+    // import JSON
+    q('#importJson').onchange = e => {
+      const file = e.target.files[0];
+      if(!file) return;
+      const reader = new FileReader();
+      reader.onload = ev => {
+        try{
+          const data = JSON.parse(ev.target.result);
+          companyName.value = data.companyName || '';
+          companyAddress.value = data.companyAddress || '';
+          billTo.value = data.billTo || '';
+          invoiceNo.value = data.invoiceNo || '';
+          invoiceDate.value = data.invoiceDate || today;
+          dueDate.value = data.dueDate || '';
+          items = (data.items && Array.isArray(data.items)) ? data.items : [];
+          discountInput.value = data.discount || 0;
+          if(data.logo){
+            logoPreview.src = data.logo; logoPreview.style.display='block';
+            q('#p-logo').src = data.logo; q('#p-logo').style.display='block';
+          }
+          renderItems();
+          updatePreview();
+        }catch(err){
+          alert('Invalid JSON file');
+        }
+      };
+      reader.readAsText(file);
+    };
+
+    // reset
+    q('#resetBtn').onclick = () => {
+      if(!confirm('Reset all fields?')) return;
+      companyName.value='Your Company Name';
+      companyAddress.value='Address line 1, City, State, Pincode';
+      billTo.value='Customer Name - City';
+      invoiceNo.value='INV-001';
+      invoiceDate.value = today;
+      dueDate.value = '';
+      logoPreview.src=''; logoPreview.style.display='none';
+      q('#p-logo').src=''; q('#p-logo').style.display='none';
+      items = [];
+      addItem('Sample item',1,699);
+      discountInput.value = 0;
+      updatePreview(); renderItems();
+    };
+  </script>
+</body>
+</html>
